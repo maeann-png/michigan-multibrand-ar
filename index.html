@@ -7,12 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
-<script crossorigin src="https://cdn.jsdelivr.net/npm/recharts@2.12.7/umd/Recharts.min.js"></script>
-<script crossorigin src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 
   :root {
@@ -286,6 +280,7 @@
     }
     .scope-card:hover { transform: none; }
   }
+
 /* --- suite additions (scope toggle, segmented control, bottom nav, chips) --- */
 .scope-row { display:flex; gap:8px; margin-bottom:20px; }
 .scope-btn { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.06em; text-transform:uppercase;
@@ -313,34 +308,55 @@
 .bn-active { color:var(--text); background:var(--accent-deep); border-color:var(--accent); }
 .aging-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--border);
   border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:36px; }
+
 </style>
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel" data-presets="react">
+<script src="react.production.min.js"></script>
+<script src="react-dom.production.min.js"></script>
+<script src="prop-types.min.js"></script>
+<script src="Recharts.js"></script>
+<script src="pako.min.js"></script>
+<script>
 /* =====================================================================
    SHARED FOUNDATION  ·  MedFarms multi-dashboard suite
    Helpers, business logic, data loading, and common UI components.
    This block is identical across the Sales / AR / Inventory / Rep
    dashboards so they stay perfectly consistent.
    ===================================================================== */
-const { useState, useEffect, useMemo, useRef } = React;
+const {
+  useState,
+  useEffect,
+  useMemo,
+  useRef
+} = React;
 
 /* ---- Recharts CDN guard --------------------------------------------- */
 if (typeof Recharts === 'undefined') {
-  document.getElementById('root').innerHTML =
-    '<div style="max-width:560px;margin:80px auto;padding:28px;background:#1c2f22;border:1px solid #33543e;border-radius:10px;color:#eaf6ed;font-family:sans-serif">' +
-    '<h2 style="font-family:Fraunces,serif;font-style:italic;font-weight:400;margin-bottom:10px">Charts library didn\u2019t load</h2>' +
-    '<p style="color:#9dc1a9;line-height:1.6">Recharts failed to load from the CDN \u2014 usually an ad-blocker or offline/firewall. Disable blockers for this page, or refresh.</p></div>';
+  document.getElementById('root').innerHTML = '<div style="max-width:560px;margin:80px auto;padding:28px;background:#1c2f22;border:1px solid #33543e;border-radius:10px;color:#eaf6ed;font-family:sans-serif">' + '<h2 style="font-family:Fraunces,serif;font-style:italic;font-weight:400;margin-bottom:10px">Charts library didn\u2019t load</h2>' + '<p style="color:#9dc1a9;line-height:1.6">Recharts failed to load from the CDN \u2014 usually an ad-blocker or offline/firewall. Disable blockers for this page, or refresh.</p></div>';
   throw new Error('Recharts failed to load');
 }
 const {
-  ResponsiveContainer, LineChart, Line, BarChart, Bar, AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell
 } = Recharts;
 
 /* ---- Number / date helpers ------------------------------------------ */
-const parseMoney = (str) => {
+const parseMoney = str => {
   if (str == null) return 0;
   if (typeof str === 'number') return str;
   let s = String(str).replace(/[$,\s]/g, '');
@@ -348,18 +364,22 @@ const parseMoney = (str) => {
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 };
-const fmtMoney = (n) => {
+const fmtMoney = n => {
   if (n == null || isNaN(n)) return '\u2014';
   const a = Math.abs(n);
   if (a >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
   if (a >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'K';
-  return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  return '$' + n.toLocaleString(undefined, {
+    maximumFractionDigits: 0
+  });
 };
-const fmtMoneyFull = (n) => '$' + (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtNum = (n) => (Math.round(n) || 0).toLocaleString();
-const fmtPct = (n) => (n == null || isNaN(n) ? '\u2014' : (n >= 0 ? '' : '') + n.toFixed(1) + '%');
-
-const parseDate = (str) => {
+const fmtMoneyFull = n => '$' + (n || 0).toLocaleString(undefined, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+const fmtNum = n => (Math.round(n) || 0).toLocaleString();
+const fmtPct = n => n == null || isNaN(n) ? '\u2014' : (n >= 0 ? '' : '') + n.toFixed(1) + '%';
+const parseDate = str => {
   if (!str) return null;
   const s = String(str).trim();
   const ymdM = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -369,7 +389,7 @@ const parseDate = (str) => {
   const d = new Date(s);
   return isNaN(d) ? null : d;
 };
-const ymd = (d) => {
+const ymd = d => {
   if (!(d instanceof Date) || isNaN(d)) return '';
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 };
@@ -377,10 +397,19 @@ const daysBetween = (a, b) => Math.floor((a.getTime() - b.getTime()) / 86400000)
 
 /* ---- Business logic (mirrors the live MedFarms dashboard) ----------- */
 const PRIMARY_BRANDS = ["Hyman", "Chill Medicated", "Value Pak Distro", "100 Shafer", "Homiez", "Covert Cups"];
-const OTHER_ALIASES = { "Brand 2402": "Mitten Extracts", "Brand 2994": "Hashish Boyz", "Brand 2993": "LayerCakeFarms" };
+const OTHER_ALIASES = {
+  "Brand 2402": "Mitten Extracts",
+  "Brand 2994": "Hashish Boyz",
+  "Brand 2993": "LayerCakeFarms"
+};
 const EXCLUDE_ACCOUNTS = ["Chill CBD Ecommerce", "Dispo Ace Production", "GNO"]; // EXACT match only
 const INTERNAL_STORES = ["Dispo - Bay City North", "Dispo - Bay City South", "Dispo - Battle Creek (Fire Creek)", "Dispo - Hazel Park", "Dispo - Romeo", "Dispo - Whitmore Lake"];
-const EXCLUDED_STATUS = { combined: 1, draft: 1, cancelled: 1, rejected: 1 };
+const EXCLUDED_STATUS = {
+  combined: 1,
+  draft: 1,
+  cancelled: 1,
+  rejected: 1
+};
 
 // Brand colors. NOTE: placeholders matching the client's requested hues
 // (Hyman=orange, Chill=blue, Covert=electric yellow, Homiez=hot pink,
@@ -392,14 +421,16 @@ const BRAND_COLORS = {
   "Homiez": "#e07594",
   "Value Pak Distro": "#cfe8d6",
   "100 Shafer": "#68ba7f",
-  "Other Brands": "#8fcba0",
+  "Other Brands": "#8fcba0"
 };
-const brandColor = (b) => BRAND_COLORS[b] || "#8fcba0";
+const brandColor = b => BRAND_COLORS[b] || "#8fcba0";
 const SERIES_COLORS = ["#68ba7f", "#5aa9e0", "#e0a85a", "#e07594", "#e8e54a", "#8fcba0", "#cfe8d6", "#4d9461"];
-
-const isPrimaryName = (b) => PRIMARY_BRANDS.includes((b || "").trim());
-const otherName = (raw) => { const b = (raw || "").trim(); return OTHER_ALIASES[b] || b || "(unlabeled)"; };
-const classifyAccount = (buyerName) => {
+const isPrimaryName = b => PRIMARY_BRANDS.includes((b || "").trim());
+const otherName = raw => {
+  const b = (raw || "").trim();
+  return OTHER_ALIASES[b] || b || "(unlabeled)";
+};
+const classifyAccount = buyerName => {
   const n = String(buyerName || '').trim().toLowerCase();
   if (!n) return 'wholesale';
   for (const e of EXCLUDE_ACCOUNTS) if (n === e.toLowerCase()) return 'excluded';
@@ -408,20 +439,19 @@ const classifyAccount = (buyerName) => {
 };
 
 // Per-order brand set (across ALL rows of the order) -> "contains" semantics.
-const buildOrderBrands = (rows) => {
+const buildOrderBrands = rows => {
   const ob = {};
   for (const r of rows) {
     const id = r.order_uid || r.order_number || '';
     if (!id) continue;
-    (ob[id] || (ob[id] = new Set()));
-    String(r.brand || '').split(',').map(s => s.trim()).filter(Boolean)
-      .forEach(t => ob[id].add(isPrimaryName(t) ? t : otherName(t)));
+    ob[id] || (ob[id] = new Set());
+    String(r.brand || '').split(',').map(s => s.trim()).filter(Boolean).forEach(t => ob[id].add(isPrimaryName(t) ? t : otherName(t)));
   }
   return ob;
 };
 
 // Normalize rows into the working shape every sales-style dashboard uses.
-const normalizeRows = (rows) => {
+const normalizeRows = rows => {
   const ob = buildOrderBrands(rows);
   return rows.map(r => {
     const id = r.order_uid || r.order_number || '';
@@ -437,13 +467,13 @@ const normalizeRows = (rows) => {
       _discount: parseMoney(r.discount),
       _qty: parseFloat(r.quantity) || 0,
       _units: parseFloat(r.units_sold) || 0,
-      _rep: (r.sales_rep && String(r.sales_rep).trim()) ? String(r.sales_rep).trim() : 'Unassigned',
-      _term: (r.payment_term && String(r.payment_term).trim()) ? String(r.payment_term).trim() : '\u2014',
+      _rep: r.sales_rep && String(r.sales_rep).trim() ? String(r.sales_rep).trim() : 'Unassigned',
+      _term: r.payment_term && String(r.payment_term).trim() ? String(r.payment_term).trim() : '\u2014',
       _bucket: classifyAccount(r.buyer_name),
       _brands: bset,
       _primaries: prims,
       _hasOther: bset.some(b => !isPrimaryName(b)),
-      _excludedStatus: !!EXCLUDED_STATUS[String(r.order_status || '').trim().toLowerCase()],
+      _excludedStatus: !!EXCLUDED_STATUS[String(r.order_status || '').trim().toLowerCase()]
     };
   });
 };
@@ -454,140 +484,276 @@ function useData(file) {
   const [error, setError] = useState(null);
   useEffect(() => {
     const load = () => {
-      fetch((file || 'sales_data.json.gz') + '?t=' + Date.now())
-        .then(r => { if (!r.ok) throw new Error('Could not load ' + (file || 'sales_data.json.gz') + ' (HTTP ' + r.status + ')'); return r.arrayBuffer(); })
-        .then(buf => {
-          const bytes = new Uint8Array(buf);
-          let text;
-          if (bytes[0] === 0x1f && bytes[1] === 0x8b) text = pako.ungzip(bytes, { to: 'string' });
-          else text = new TextDecoder().decode(bytes);
-          setData(JSON.parse(text));
-        })
-        .catch(e => setError(e.message));
+      fetch((file || 'sales_data.json.gz') + '?t=' + Date.now()).then(r => {
+        if (!r.ok) throw new Error('Could not load ' + (file || 'sales_data.json.gz') + ' (HTTP ' + r.status + ')');
+        return r.arrayBuffer();
+      }).then(buf => {
+        const bytes = new Uint8Array(buf);
+        let text;
+        if (bytes[0] === 0x1f && bytes[1] === 0x8b) text = pako.ungzip(bytes, {
+          to: 'string'
+        });else text = new TextDecoder().decode(bytes);
+        setData(JSON.parse(text));
+      }).catch(e => setError(e.message));
     };
     load();
     const id = setInterval(load, 60000);
     return () => clearInterval(id);
   }, [file]);
-  return { data, error };
+  return {
+    data,
+    error
+  };
 }
 
 /* ---- Common UI components ------------------------------------------- */
-function Topbar({ title, subtitle, fetchedAt, right }) {
+function Topbar({
+  title,
+  subtitle,
+  fetchedAt,
+  right
+}) {
   const ago = fetchedAt ? Math.floor((Date.now() - fetchedAt.getTime()) / 60000) : null;
-  return (
-    <div className="topbar">
-      <div className="brand-mark" style={{ alignItems: 'center', gap: 14 }}>
-        <img src="logo.png" alt="MedFarms" style={{ height: 44, width: 'auto', flexShrink: 0 }}
-             onError={(e) => { e.target.style.display = 'none'; }} />
-        <div>
-          <h1 className="brand-name" style={{ lineHeight: 1, fontSize: 25 }}>
-            {title} <em style={{ color: 'var(--text-dim)', fontStyle: 'italic', fontWeight: 400 }}>{subtitle}</em>
-          </h1>
-          <div className="brand-tag" style={{ marginTop: 4, border: 'none', padding: 0, fontSize: 9 }}>
-            Michigan \u00b7 Medfarms Intelligence
-          </div>
-        </div>
-      </div>
-      <div className="topbar-meta">
-        {right}
-        {ago != null && <span>Updated {ago < 1 ? 'just now' : ago + 'm ago'}</span>}
-        <span className="pulse"></span>
-      </div>
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    className: "topbar"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "brand-mark",
+    style: {
+      alignItems: 'center',
+      gap: 14
+    }
+  }, /*#__PURE__*/React.createElement("img", {
+    src: "logo.png",
+    alt: "MedFarms",
+    style: {
+      height: 44,
+      width: 'auto',
+      flexShrink: 0
+    },
+    onError: e => {
+      e.target.style.display = 'none';
+    }
+  }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h1", {
+    className: "brand-name",
+    style: {
+      lineHeight: 1,
+      fontSize: 25
+    }
+  }, title, " ", /*#__PURE__*/React.createElement("em", {
+    style: {
+      color: 'var(--text-dim)',
+      fontStyle: 'italic',
+      fontWeight: 400
+    }
+  }, subtitle)), /*#__PURE__*/React.createElement("div", {
+    className: "brand-tag",
+    style: {
+      marginTop: 4,
+      border: 'none',
+      padding: 0,
+      fontSize: 9
+    }
+  }, "Michigan \\u00b7 Medfarms Intelligence"))), /*#__PURE__*/React.createElement("div", {
+    className: "topbar-meta"
+  }, right, ago != null && /*#__PURE__*/React.createElement("span", null, "Updated ", ago < 1 ? 'just now' : ago + 'm ago'), /*#__PURE__*/React.createElement("span", {
+    className: "pulse"
+  })));
 }
-
-function Kpi({ label, value, sub, accent, color }) {
-  return (
-    <div className={'kpi' + (accent ? ' kpi-accent' : '')}>
-      <div className="kpi-label">{label}</div>
-      <div className="kpi-value tabular" style={color ? { color } : null}>{value}</div>
-      {sub && <div className="kpi-sub">{sub}</div>}
-    </div>
-  );
+function Kpi({
+  label,
+  value,
+  sub,
+  accent,
+  color
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: 'kpi' + (accent ? ' kpi-accent' : '')
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "kpi-label"
+  }, label), /*#__PURE__*/React.createElement("div", {
+    className: "kpi-value tabular",
+    style: color ? {
+      color
+    } : null
+  }, value), sub && /*#__PURE__*/React.createElement("div", {
+    className: "kpi-sub"
+  }, sub));
 }
-
-function SectionHeader({ title, em, meta }) {
-  return (
-    <div className="section-header">
-      <h2 className="section-title">{title} {em && <em>{em}</em>}</h2>
-      {meta && <span className="section-meta">{meta}</span>}
-    </div>
-  );
+function SectionHeader({
+  title,
+  em,
+  meta
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "section-header"
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: "section-title"
+  }, title, " ", em && /*#__PURE__*/React.createElement("em", null, em)), meta && /*#__PURE__*/React.createElement("span", {
+    className: "section-meta"
+  }, meta));
 }
-
-function RankList({ data, colorByName }) {
+function RankList({
+  data,
+  colorByName
+}) {
   const max = Math.max(...data.map(d => d.value), 1);
-  return (
-    <div className="rank-list">
-      {data.length === 0 && <div style={{ padding: 20, color: 'var(--text-faint)', textAlign: 'center', fontSize: 13 }}>No data</div>}
-      {data.map((d, i) => (
-        <div key={i} className="rank-row">
-          <div className="rank-num">{String(i + 1).padStart(2, '0')}</div>
-          <div className="rank-name" title={d.name}>
-            {colorByName && <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: brandColor(d.name), marginRight: 8 }}></span>}
-            {d.name}
-          </div>
-          <div className="rank-value">{d.display || fmtMoneyFull(d.value)}</div>
-          <div className="rank-bar" style={{ width: 'calc(' + (d.value / max * 100).toFixed(1) + '% - 80px)' }}></div>
-        </div>
-      ))}
-    </div>
-  );
+  return /*#__PURE__*/React.createElement("div", {
+    className: "rank-list"
+  }, data.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: 20,
+      color: 'var(--text-faint)',
+      textAlign: 'center',
+      fontSize: 13
+    }
+  }, "No data"), data.map((d, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "rank-row"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "rank-num"
+  }, String(i + 1).padStart(2, '0')), /*#__PURE__*/React.createElement("div", {
+    className: "rank-name",
+    title: d.name
+  }, colorByName && /*#__PURE__*/React.createElement("span", {
+    style: {
+      display: 'inline-block',
+      width: 8,
+      height: 8,
+      borderRadius: 2,
+      background: brandColor(d.name),
+      marginRight: 8
+    }
+  }), d.name), /*#__PURE__*/React.createElement("div", {
+    className: "rank-value"
+  }, d.display || fmtMoneyFull(d.value)), /*#__PURE__*/React.createElement("div", {
+    className: "rank-bar",
+    style: {
+      width: 'calc(' + (d.value / max * 100).toFixed(1) + '% - 80px)'
+    }
+  }))));
 }
-
-function StatusPill({ status }) {
-  if (!status) return <span className="dim">\u2014</span>;
+function StatusPill({
+  status
+}) {
+  if (!status) return /*#__PURE__*/React.createElement("span", {
+    className: "dim"
+  }, "\\u2014");
   const s = status.toLowerCase();
-  const cls = s.includes('paid') && !s.includes('un') ? 'pill-completed'
-    : s.includes('overdue') ? 'pill-overdue' : 'pill-pending';
-  return <span className={'pill ' + cls}>{status}</span>;
+  const cls = s.includes('paid') && !s.includes('un') ? 'pill-completed' : s.includes('overdue') ? 'pill-overdue' : 'pill-pending';
+  return /*#__PURE__*/React.createElement("span", {
+    className: 'pill ' + cls
+  }, status);
+}
+function Empty({
+  title,
+  children
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    className: "empty"
+  }, /*#__PURE__*/React.createElement("h2", null, title), children);
 }
 
-function Empty({ title, children }) {
-  return <div className="empty"><h2>{title}</h2>{children}</div>;
-}
 /* =====================================================================
    ACCOUNTS RECEIVABLE DASHBOARD
    Outstanding balances aged from invoice date + payment term.
    Aging definition is a sensible default — confirm rules with client.
    ===================================================================== */
-const NAV = [
-  { key: 'sales',     label: 'Sales',        href: '../sales/index.html' },
-  { key: 'ar',        label: 'Receivables',  href: 'index.html' },
-  { key: 'inventory', label: 'Inventory',    href: '../inventory/index.html' },
-  { key: 'rep',       label: 'By Rep',       href: '../rep/index.html' },
-];
+const NAV = [{
+  key: 'sales',
+  label: 'Sales',
+  href: 'https://maeann-png.github.io/michigan-mutibrand-sales/'
+}, {
+  key: 'ar',
+  label: 'Receivables',
+  href: 'https://maeann-png.github.io/michigan-multibrand-ar/'
+}, {
+  key: 'inventory',
+  label: 'Inventory',
+  href: 'https://maeann-png.github.io/michigan-multibrand-inventory/'
+}, {
+  key: 'rep',
+  label: 'By Rep',
+  href: 'https://maeann-png.github.io/michigan-multibrand-rep/'
+}];
 const ACTIVE = 'ar';
 function BottomNav() {
-  return <nav className="bottom-nav">{NAV.map(n => <a key={n.key} href={n.href} className={'bn-tab' + (n.key === ACTIVE ? ' bn-active' : '')}>{n.label}</a>)}</nav>;
+  return /*#__PURE__*/React.createElement("nav", {
+    className: "bottom-nav"
+  }, NAV.map(n => /*#__PURE__*/React.createElement("a", {
+    key: n.key,
+    href: n.href,
+    className: 'bn-tab' + (n.key === ACTIVE ? ' bn-active' : '')
+  }, n.label)));
 }
 
 // Aging buckets + colors (client spec: Current=green, 31-60=yellow, 61-90=orange, 91+=red)
-const BUCKETS = [
-  { key: 'current', label: 'Current', color: '#68ba7f', test: (d) => d <= 30 },
-  { key: 'b31',     label: '31\u201360 days', color: '#e8e54a', test: (d) => d > 30 && d <= 60 },
-  { key: 'b61',     label: '61\u201390 days', color: '#e0a85a', test: (d) => d > 60 && d <= 90 },
-  { key: 'b91',     label: '91+ days', color: '#e07594', test: (d) => d > 90 },
-];
-const bucketOf = (days) => (BUCKETS.find(b => b.test(days)) || BUCKETS[0]);
-const termDays = (term) => {
+const BUCKETS = [{
+  key: 'current',
+  label: 'Current',
+  color: '#68ba7f',
+  test: d => d <= 30
+}, {
+  key: 'b31',
+  label: '31\u201360 days',
+  color: '#e8e54a',
+  test: d => d > 30 && d <= 60
+}, {
+  key: 'b61',
+  label: '61\u201390 days',
+  color: '#e0a85a',
+  test: d => d > 60 && d <= 90
+}, {
+  key: 'b91',
+  label: '91+ days',
+  color: '#e07594',
+  test: d => d > 90
+}];
+const bucketOf = days => BUCKETS.find(b => b.test(days)) || BUCKETS[0];
+const termDays = term => {
   const t = String(term || '').trim().toLowerCase();
   const m = t.match(/net\s*(\d+)/);
   if (m) return +m[1];
   return 0; // COD, blank, Consignment, LeafLink Financial -> due on invoice date
 };
-
 function App() {
-  const { data, error } = useData('sales_data.json.gz');
-  const [filters, setFilters] = useState({ rep: '', buyer: '', brand: '', bucket: '', search: '' });
-  if (error) return <div className="app"><Empty title="No data yet"><p>Run the scraper to produce <code>sales_data.json.gz</code>.</p><p style={{ marginTop: 10, fontSize: 12, color: 'var(--text-faint)' }}>{error}</p></Empty></div>;
-  if (!data) return <div className="app"><Empty title="Loading\u2026" /></div>;
-  return <ARDashboard data={data} filters={filters} setFilters={setFilters} />;
+  const {
+    data,
+    error
+  } = useData('sales_data.json.gz');
+  const [filters, setFilters] = useState({
+    rep: '',
+    buyer: '',
+    brand: '',
+    bucket: '',
+    search: ''
+  });
+  if (error) return /*#__PURE__*/React.createElement("div", {
+    className: "app"
+  }, /*#__PURE__*/React.createElement(Empty, {
+    title: "No data yet"
+  }, /*#__PURE__*/React.createElement("p", null, "Run the scraper to produce ", /*#__PURE__*/React.createElement("code", null, "sales_data.json.gz"), "."), /*#__PURE__*/React.createElement("p", {
+    style: {
+      marginTop: 10,
+      fontSize: 12,
+      color: 'var(--text-faint)'
+    }
+  }, error)));
+  if (!data) return /*#__PURE__*/React.createElement("div", {
+    className: "app"
+  }, /*#__PURE__*/React.createElement(Empty, {
+    title: "Loading\\u2026"
+  }));
+  return /*#__PURE__*/React.createElement(ARDashboard, {
+    data: data,
+    filters: filters,
+    setFilters: setFilters
+  });
 }
-
-function ARDashboard({ data, filters, setFilters }) {
+function ARDashboard({
+  data,
+  filters,
+  setFilters
+}) {
   const rows = data.rows || [];
   const normalized = useMemo(() => normalizeRows(rows), [rows]);
   const asOf = useMemo(() => parseDate(data.fetched_at) || new Date(), [data]);
@@ -597,169 +763,390 @@ function ARDashboard({ data, filters, setFilters }) {
     const m = {};
     normalized.forEach(r => {
       if (r._bucket === 'excluded' || r._excludedStatus) return;
-      if (r.paid === true) return;                 // only outstanding
-      const id = r._id; if (!id) return;
+      if (r.paid === true) return; // only outstanding
+      const id = r._id;
+      if (!id) return;
       if (!m[id]) {
         const due = r._date ? new Date(r._date.getTime() + termDays(r.payment_term) * 86400000) : null;
         const days = due ? daysBetween(asOf, due) : 0;
         m[id] = {
-          id, invoice: r.order_number || id, buyer: r.buyer_name || '\u2014', rep: r._rep,
-          state: r.buyer_state || '\u2014', date: r._date ? ymd(r._date) : '\u2014',
-          due: due ? ymd(due) : '\u2014', days, term: r._term, status: r.payment_status || 'Unpaid',
-          brands: new Set(), outstanding: 0,
+          id,
+          invoice: r.order_number || id,
+          buyer: r.buyer_name || '\u2014',
+          rep: r._rep,
+          state: r.buyer_state || '\u2014',
+          date: r._date ? ymd(r._date) : '\u2014',
+          due: due ? ymd(due) : '\u2014',
+          days,
+          term: r._term,
+          status: r.payment_status || 'Unpaid',
+          brands: new Set(),
+          outstanding: 0
         };
       }
-      r._primaries.forEach(b => m[id].brands.add(b)); if (r._hasOther) m[id].brands.add('Other Brands');
+      r._primaries.forEach(b => m[id].brands.add(b));
+      if (r._hasOther) m[id].brands.add('Other Brands');
       m[id].outstanding += r._revenue;
     });
-    return Object.values(m).map(o => ({ ...o, brands: [...o.brands], bucket: bucketOf(o.days) }));
+    return Object.values(m).map(o => ({
+      ...o,
+      brands: [...o.brands],
+      bucket: bucketOf(o.days)
+    }));
   }, [normalized, asOf]);
-
   const distinct = useMemo(() => ({
     reps: [...new Set(invoices.map(o => o.rep).filter(Boolean))].sort(),
     buyers: [...new Set(invoices.map(o => o.buyer).filter(Boolean))].sort(),
-    brands: PRIMARY_BRANDS.filter(b => invoices.some(o => o.brands.includes(b))),
+    brands: PRIMARY_BRANDS.filter(b => invoices.some(o => o.brands.includes(b)))
   }), [invoices]);
-
   const filtered = useMemo(() => invoices.filter(o => {
     if (filters.rep && o.rep !== filters.rep) return false;
     if (filters.buyer && o.buyer !== filters.buyer) return false;
     if (filters.brand && !o.brands.includes(filters.brand)) return false;
     if (filters.bucket && o.bucket.key !== filters.bucket) return false;
-    if (filters.search) { const q = filters.search.toLowerCase(); if (!((o.invoice + ' ' + o.buyer + ' ' + o.rep).toLowerCase().includes(q))) return false; }
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      if (!(o.invoice + ' ' + o.buyer + ' ' + o.rep).toLowerCase().includes(q)) return false;
+    }
     return true;
   }), [invoices, filters]);
-
   const totals = useMemo(() => {
-    const t = { total: 0, count: filtered.length };
+    const t = {
+      total: 0,
+      count: filtered.length
+    };
     BUCKETS.forEach(b => t[b.key] = 0);
-    filtered.forEach(o => { t.total += o.outstanding; t[o.bucket.key] += o.outstanding; });
+    filtered.forEach(o => {
+      t.total += o.outstanding;
+      t[o.bucket.key] += o.outstanding;
+    });
     return t;
   }, [filtered]);
-
   const byRep = useMemo(() => {
     const m = {};
     filtered.forEach(o => {
-      if (!m[o.rep]) { m[o.rep] = { name: o.rep, total: 0 }; BUCKETS.forEach(b => m[o.rep][b.key] = 0); }
-      m[o.rep].total += o.outstanding; m[o.rep][o.bucket.key] += o.outstanding;
+      if (!m[o.rep]) {
+        m[o.rep] = {
+          name: o.rep,
+          total: 0
+        };
+        BUCKETS.forEach(b => m[o.rep][b.key] = 0);
+      }
+      m[o.rep].total += o.outstanding;
+      m[o.rep][o.bucket.key] += o.outstanding;
     });
     return Object.values(m).sort((a, b) => b.total - a.total);
   }, [filtered]);
-
   const byBuyer = useMemo(() => {
     const m = {};
-    filtered.forEach(o => { if (!m[o.buyer]) m[o.buyer] = { name: o.buyer, value: 0 }; m[o.buyer].value += o.outstanding; });
+    filtered.forEach(o => {
+      if (!m[o.buyer]) m[o.buyer] = {
+        name: o.buyer,
+        value: 0
+      };
+      m[o.buyer].value += o.outstanding;
+    });
     return Object.values(m).sort((a, b) => b.value - a.value).slice(0, 12);
   }, [filtered]);
-
-  const agingPie = BUCKETS.map(b => ({ name: b.label, value: totals[b.key], color: b.color })).filter(d => d.value > 0);
+  const agingPie = BUCKETS.map(b => ({
+    name: b.label,
+    value: totals[b.key],
+    color: b.color
+  })).filter(d => d.value > 0);
   const sorted = useMemo(() => filtered.slice().sort((a, b) => b.days - a.days), [filtered]);
-
-  const reset = () => setFilters({ rep: '', buyer: '', brand: '', bucket: '', search: '' });
-  const upd = (k, v) => setFilters(f => ({ ...f, [k]: v }));
-
-  return (
-    <div className="app" style={{ paddingBottom: 110 }}>
-      <Topbar title="Accounts" subtitle="receivable" fetchedAt={asOf}
-        right={<span><strong>{fmtNum(totals.count)}</strong> open invoices</span>} />
-
-      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-dim)', marginBottom: 18 }}>
-        Aged as of {ymd(asOf)} \u00b7 due date = invoice date + payment term \u00b7 outstanding = net of unpaid orders
-      </div>
-
-      {/* Filters */}
-      <div className="filters">
-        <div className="filter-group"><label className="filter-label">Sales Rep</label><select className="filter-select" value={filters.rep} onChange={e => upd('rep', e.target.value)}><option value="">All</option>{distinct.reps.map(b => <option key={b}>{b}</option>)}</select></div>
-        <div className="filter-group"><label className="filter-label">Buyer</label><select className="filter-select" value={filters.buyer} onChange={e => upd('buyer', e.target.value)}><option value="">All</option>{distinct.buyers.map(b => <option key={b}>{b}</option>)}</select></div>
-        <div className="filter-group"><label className="filter-label">Brand</label><select className="filter-select" value={filters.brand} onChange={e => upd('brand', e.target.value)}><option value="">All</option>{distinct.brands.map(b => <option key={b}>{b}</option>)}</select></div>
-        <div className="filter-group"><label className="filter-label">Aging</label><select className="filter-select" value={filters.bucket} onChange={e => upd('bucket', e.target.value)}><option value="">All</option>{BUCKETS.map(b => <option key={b.key} value={b.key}>{b.label}</option>)}</select></div>
-        <div className="filter-group" style={{ minWidth: 180 }}><label className="filter-label">Search</label><input type="text" className="filter-input" placeholder="invoice / buyer / rep\u2026" value={filters.search} onChange={e => upd('search', e.target.value)} /></div>
-        <button className="filter-reset filter-reset-lg" onClick={reset}>Reset</button>
-      </div>
-
-      {/* Total + aging buckets */}
-      <div className="aging-grid">
-        <Kpi label="Total Outstanding" value={fmtMoney(totals.total)} sub={fmtNum(totals.count) + ' invoices'} accent />
-        {BUCKETS.map(b => (
-          <Kpi key={b.key} label={b.label} value={fmtMoney(totals[b.key])} color={b.color}
-            sub={totals.total ? (totals[b.key] / totals.total * 100).toFixed(1) + '% of AR' : '\u2014'} />
-        ))}
-      </div>
-
-      {/* Aging mix + top buyers */}
-      <section className="section">
-        <div className="grid-half">
-          <div>
-            <SectionHeader title="Aging" em="mix" meta="by bucket" />
-            <div className="card" style={{ height: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={agingPie} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={62} outerRadius={110} paddingAngle={2} stroke="var(--bg)" strokeWidth={2}>
-                    {agingPie.map((d, i) => <Cell key={i} fill={d.color} />)}
-                  </Pie>
-                  <Tooltip contentStyle={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} formatter={(v) => fmtMoneyFull(v)} />
-                  <Legend verticalAlign="bottom" iconType="square" wrapperStyle={{ fontSize: 11, fontFamily: 'JetBrains Mono', color: 'var(--text-dim)' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          <div>
-            <SectionHeader title="Top" em="balances" meta="by buyer" />
-            <div className="card"><RankList data={byBuyer} /></div>
-          </div>
-        </div>
-      </section>
-
-      {/* By rep (stacked aging) */}
-      <section className="section">
-        <SectionHeader title="Outstanding" em="by rep" meta={byRep.length + ' reps'} />
-        <div className="card" style={{ height: 340 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={byRep} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
-              <CartesianGrid stroke="var(--border-soft)" strokeDasharray="2 2" horizontal={false} />
-              <XAxis type="number" stroke="var(--text-faint)" tick={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} tickFormatter={fmtMoney} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="name" stroke="var(--text-faint)" tick={{ fontSize: 11 }} width={130} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: 'var(--bg-elev)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} formatter={(v, n) => [fmtMoneyFull(v), n]} />
-              <Legend wrapperStyle={{ fontSize: 11, fontFamily: 'JetBrains Mono' }} />
-              {BUCKETS.map(b => <Bar key={b.key} dataKey={b.key} name={b.label} stackId="a" fill={b.color} radius={[0, 2, 2, 0]} />)}
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
-      {/* Aging detail table */}
-      <section className="section">
-        <SectionHeader title="Open" em="invoices" meta={fmtNum(filtered.length) + ' invoices · oldest first'} />
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto', maxHeight: 520 }}>
-            <table className="data-table">
-              <thead><tr><th>Invoice #</th><th>Buyer</th><th>Rep</th><th>Brands</th><th>Invoice</th><th>Due</th><th className="num">Days Past</th><th>Aging</th><th className="num">Outstanding</th></tr></thead>
-              <tbody>
-                {sorted.slice(0, 200).map((o, i) => (
-                  <tr key={i}>
-                    <td className="font-mono" style={{ color: 'var(--accent)' }}>{o.invoice}</td>
-                    <td>{o.buyer}</td><td className="dim">{o.rep}</td>
-                    <td>{o.brands.map((b, j) => <span key={j} className="chip" style={{ color: brandColor(b), borderColor: brandColor(b) }}>{b}</span>)}</td>
-                    <td className="dim font-mono">{o.date}</td><td className="dim font-mono">{o.due}</td>
-                    <td className="num" style={{ color: o.bucket.color }}>{o.days}</td>
-                    <td><span className="pill" style={{ color: o.bucket.color, borderColor: o.bucket.color }}>{o.bucket.label}</span></td>
-                    <td className="num"><strong>{fmtMoneyFull(o.outstanding)}</strong></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filtered.length > 200 && <div className="table-foot">Showing 200 of {fmtNum(filtered.length)} \u00b7 use filters to narrow</div>}
-        </div>
-      </section>
-
-      <BottomNav />
-    </div>
-  );
+  const reset = () => setFilters({
+    rep: '',
+    buyer: '',
+    brand: '',
+    bucket: '',
+    search: ''
+  });
+  const upd = (k, v) => setFilters(f => ({
+    ...f,
+    [k]: v
+  }));
+  return /*#__PURE__*/React.createElement("div", {
+    className: "app",
+    style: {
+      paddingBottom: 110
+    }
+  }, /*#__PURE__*/React.createElement(Topbar, {
+    title: "Accounts",
+    subtitle: "receivable",
+    fetchedAt: asOf,
+    right: /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("strong", null, fmtNum(totals.count)), " open invoices")
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontFamily: 'JetBrains Mono, monospace',
+      fontSize: 11,
+      color: 'var(--text-dim)',
+      marginBottom: 18
+    }
+  }, "Aged as of ", ymd(asOf), " \\u00b7 due date = invoice date + payment term \\u00b7 outstanding = net of unpaid orders"), /*#__PURE__*/React.createElement("div", {
+    className: "filters"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "filter-group"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "filter-label"
+  }, "Sales Rep"), /*#__PURE__*/React.createElement("select", {
+    className: "filter-select",
+    value: filters.rep,
+    onChange: e => upd('rep', e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "All"), distinct.reps.map(b => /*#__PURE__*/React.createElement("option", {
+    key: b
+  }, b)))), /*#__PURE__*/React.createElement("div", {
+    className: "filter-group"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "filter-label"
+  }, "Buyer"), /*#__PURE__*/React.createElement("select", {
+    className: "filter-select",
+    value: filters.buyer,
+    onChange: e => upd('buyer', e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "All"), distinct.buyers.map(b => /*#__PURE__*/React.createElement("option", {
+    key: b
+  }, b)))), /*#__PURE__*/React.createElement("div", {
+    className: "filter-group"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "filter-label"
+  }, "Brand"), /*#__PURE__*/React.createElement("select", {
+    className: "filter-select",
+    value: filters.brand,
+    onChange: e => upd('brand', e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "All"), distinct.brands.map(b => /*#__PURE__*/React.createElement("option", {
+    key: b
+  }, b)))), /*#__PURE__*/React.createElement("div", {
+    className: "filter-group"
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "filter-label"
+  }, "Aging"), /*#__PURE__*/React.createElement("select", {
+    className: "filter-select",
+    value: filters.bucket,
+    onChange: e => upd('bucket', e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "All"), BUCKETS.map(b => /*#__PURE__*/React.createElement("option", {
+    key: b.key,
+    value: b.key
+  }, b.label)))), /*#__PURE__*/React.createElement("div", {
+    className: "filter-group",
+    style: {
+      minWidth: 180
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    className: "filter-label"
+  }, "Search"), /*#__PURE__*/React.createElement("input", {
+    type: "text",
+    className: "filter-input",
+    placeholder: "invoice / buyer / rep\\u2026",
+    value: filters.search,
+    onChange: e => upd('search', e.target.value)
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "filter-reset filter-reset-lg",
+    onClick: reset
+  }, "Reset")), /*#__PURE__*/React.createElement("div", {
+    className: "aging-grid"
+  }, /*#__PURE__*/React.createElement(Kpi, {
+    label: "Total Outstanding",
+    value: fmtMoney(totals.total),
+    sub: fmtNum(totals.count) + ' invoices',
+    accent: true
+  }), BUCKETS.map(b => /*#__PURE__*/React.createElement(Kpi, {
+    key: b.key,
+    label: b.label,
+    value: fmtMoney(totals[b.key]),
+    color: b.color,
+    sub: totals.total ? (totals[b.key] / totals.total * 100).toFixed(1) + '% of AR' : '\u2014'
+  }))), /*#__PURE__*/React.createElement("section", {
+    className: "section"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "grid-half"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionHeader, {
+    title: "Aging",
+    em: "mix",
+    meta: "by bucket"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      height: 320,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }, /*#__PURE__*/React.createElement(ResponsiveContainer, {
+    width: "100%",
+    height: "100%"
+  }, /*#__PURE__*/React.createElement(PieChart, null, /*#__PURE__*/React.createElement(Pie, {
+    data: agingPie,
+    dataKey: "value",
+    nameKey: "name",
+    cx: "50%",
+    cy: "50%",
+    innerRadius: 62,
+    outerRadius: 110,
+    paddingAngle: 2,
+    stroke: "var(--bg)",
+    strokeWidth: 2
+  }, agingPie.map((d, i) => /*#__PURE__*/React.createElement(Cell, {
+    key: i,
+    fill: d.color
+  }))), /*#__PURE__*/React.createElement(Tooltip, {
+    contentStyle: {
+      background: 'var(--bg-elev)',
+      border: '1px solid var(--border)',
+      borderRadius: 8,
+      fontSize: 12
+    },
+    formatter: v => fmtMoneyFull(v)
+  }), /*#__PURE__*/React.createElement(Legend, {
+    verticalAlign: "bottom",
+    iconType: "square",
+    wrapperStyle: {
+      fontSize: 11,
+      fontFamily: 'JetBrains Mono',
+      color: 'var(--text-dim)'
+    }
+  }))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement(SectionHeader, {
+    title: "Top",
+    em: "balances",
+    meta: "by buyer"
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement(RankList, {
+    data: byBuyer
+  }))))), /*#__PURE__*/React.createElement("section", {
+    className: "section"
+  }, /*#__PURE__*/React.createElement(SectionHeader, {
+    title: "Outstanding",
+    em: "by rep",
+    meta: byRep.length + ' reps'
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      height: 340
+    }
+  }, /*#__PURE__*/React.createElement(ResponsiveContainer, {
+    width: "100%",
+    height: "100%"
+  }, /*#__PURE__*/React.createElement(BarChart, {
+    data: byRep,
+    layout: "vertical",
+    margin: {
+      top: 8,
+      right: 16,
+      left: 8,
+      bottom: 8
+    }
+  }, /*#__PURE__*/React.createElement(CartesianGrid, {
+    stroke: "var(--border-soft)",
+    strokeDasharray: "2 2",
+    horizontal: false
+  }), /*#__PURE__*/React.createElement(XAxis, {
+    type: "number",
+    stroke: "var(--text-faint)",
+    tick: {
+      fontSize: 11,
+      fontFamily: 'JetBrains Mono'
+    },
+    tickFormatter: fmtMoney,
+    axisLine: false,
+    tickLine: false
+  }), /*#__PURE__*/React.createElement(YAxis, {
+    type: "category",
+    dataKey: "name",
+    stroke: "var(--text-faint)",
+    tick: {
+      fontSize: 11
+    },
+    width: 130,
+    axisLine: false,
+    tickLine: false
+  }), /*#__PURE__*/React.createElement(Tooltip, {
+    contentStyle: {
+      background: 'var(--bg-elev)',
+      border: '1px solid var(--border)',
+      borderRadius: 8,
+      fontSize: 12
+    },
+    formatter: (v, n) => [fmtMoneyFull(v), n]
+  }), /*#__PURE__*/React.createElement(Legend, {
+    wrapperStyle: {
+      fontSize: 11,
+      fontFamily: 'JetBrains Mono'
+    }
+  }), BUCKETS.map(b => /*#__PURE__*/React.createElement(Bar, {
+    key: b.key,
+    dataKey: b.key,
+    name: b.label,
+    stackId: "a",
+    fill: b.color,
+    radius: [0, 2, 2, 0]
+  })))))), /*#__PURE__*/React.createElement("section", {
+    className: "section"
+  }, /*#__PURE__*/React.createElement(SectionHeader, {
+    title: "Open",
+    em: "invoices",
+    meta: fmtNum(filtered.length) + ' invoices · oldest first'
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "card",
+    style: {
+      padding: 0,
+      overflow: 'hidden'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      overflowX: 'auto',
+      maxHeight: 520
+    }
+  }, /*#__PURE__*/React.createElement("table", {
+    className: "data-table"
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Invoice #"), /*#__PURE__*/React.createElement("th", null, "Buyer"), /*#__PURE__*/React.createElement("th", null, "Rep"), /*#__PURE__*/React.createElement("th", null, "Brands"), /*#__PURE__*/React.createElement("th", null, "Invoice"), /*#__PURE__*/React.createElement("th", null, "Due"), /*#__PURE__*/React.createElement("th", {
+    className: "num"
+  }, "Days Past"), /*#__PURE__*/React.createElement("th", null, "Aging"), /*#__PURE__*/React.createElement("th", {
+    className: "num"
+  }, "Outstanding"))), /*#__PURE__*/React.createElement("tbody", null, sorted.slice(0, 200).map((o, i) => /*#__PURE__*/React.createElement("tr", {
+    key: i
+  }, /*#__PURE__*/React.createElement("td", {
+    className: "font-mono",
+    style: {
+      color: 'var(--accent)'
+    }
+  }, o.invoice), /*#__PURE__*/React.createElement("td", null, o.buyer), /*#__PURE__*/React.createElement("td", {
+    className: "dim"
+  }, o.rep), /*#__PURE__*/React.createElement("td", null, o.brands.map((b, j) => /*#__PURE__*/React.createElement("span", {
+    key: j,
+    className: "chip",
+    style: {
+      color: brandColor(b),
+      borderColor: brandColor(b)
+    }
+  }, b))), /*#__PURE__*/React.createElement("td", {
+    className: "dim font-mono"
+  }, o.date), /*#__PURE__*/React.createElement("td", {
+    className: "dim font-mono"
+  }, o.due), /*#__PURE__*/React.createElement("td", {
+    className: "num",
+    style: {
+      color: o.bucket.color
+    }
+  }, o.days), /*#__PURE__*/React.createElement("td", null, /*#__PURE__*/React.createElement("span", {
+    className: "pill",
+    style: {
+      color: o.bucket.color,
+      borderColor: o.bucket.color
+    }
+  }, o.bucket.label)), /*#__PURE__*/React.createElement("td", {
+    className: "num"
+  }, /*#__PURE__*/React.createElement("strong", null, fmtMoneyFull(o.outstanding)))))))), filtered.length > 200 && /*#__PURE__*/React.createElement("div", {
+    className: "table-foot"
+  }, "Showing 200 of ", fmtNum(filtered.length), " \\u00b7 use filters to narrow"))), /*#__PURE__*/React.createElement(BottomNav, null));
 }
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-
+ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));
 </script>
 </body>
 </html>
