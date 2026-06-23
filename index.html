@@ -608,6 +608,61 @@ const RECENCY_LABEL = {
   b91: '90+ days'
 };
 const SERIES_COLORS = ["#4b2e83", "#6a2f9e", "#8e2f9e", "#a82d8a", "#c23a5e", "#7c3aed", "#b0317a", "#c084fc"];
+// High-contrast palette (distinct hues) for category mixes and multi-year lines
+const CONTRAST = ["#2563eb", "#e0792a", "#16a34a", "#dc2626", "#7c3aed", "#0891b2", "#ca8a04", "#db2777", "#0d9488", "#9333ea", "#65a30d", "#be123c"];
+// Quick date ranges (anchored to today)
+const QUICK_RANGES = [{
+  key: 'today',
+  label: 'Today'
+}, {
+  key: 'week',
+  label: 'Last week'
+}, {
+  key: '30',
+  label: '30 days'
+}, {
+  key: '90',
+  label: '90 days'
+}, {
+  key: 'ytd',
+  label: 'YTD'
+}];
+const quickRangeDates = key => {
+  const t = new Date();
+  const to = ymd(t);
+  const back = n => {
+    const x = new Date(t);
+    x.setDate(x.getDate() - n);
+    return ymd(x);
+  };
+  if (key === 'today') return {
+    from: to,
+    to
+  };
+  if (key === 'week') return {
+    from: back(7),
+    to
+  };
+  if (key === '30') return {
+    from: back(30),
+    to
+  };
+  if (key === '90') return {
+    from: back(90),
+    to
+  };
+  if (key === 'ytd') return {
+    from: ymd(new Date(t.getFullYear(), 0, 1)),
+    to
+  };
+  return {
+    from: '',
+    to: ''
+  };
+};
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// Canonical sales-rep roster (always offered in rep filters/tabs even if absent from a given slice)
+const REP_ROSTER = ["Toby Kassa", "Darren Dabish", "Steve Kirma", "Cristina Moceri", "Shawn Dabish"];
 const isPrimaryName = b => PRIMARY_BRANDS.includes((b || "").trim());
 const otherName = raw => {
   const b = (raw || "").trim();
@@ -1331,7 +1386,7 @@ function ARDashboard({
   }, [preScope]);
   const filtered = useMemo(() => preScope.filter(inScope), [preScope, scope]);
   const distinct = useMemo(() => ({
-    reps: [...new Set(allInvoices.map(o => o.rep).filter(Boolean))].sort(),
+    reps: [...new Set([...REP_ROSTER, ...allInvoices.map(o => o.rep).filter(Boolean)])].sort(),
     buyers: [...new Set(allInvoices.map(o => o.buyer).filter(Boolean))].sort(),
     brands: PRIMARY_BRANDS.filter(b => allInvoices.some(o => o.brands.includes(b)))
   }), [allInvoices]);
@@ -1522,14 +1577,7 @@ function ARDashboard({
     }
   }, fmtMoney(totals[b.key])), /*#__PURE__*/React.createElement("div", {
     className: "kpi-sub"
-  }, totals.total ? (totals[b.key] / totals.total * 100).toFixed(1) + '% of AR' : '—')))), /*#__PURE__*/React.createElement(TimeSeriesChart, {
-    title: "Outstanding",
-    em: "over time",
-    data: series,
-    grouping: grouping,
-    setGrouping: setGrouping,
-    metricLabel: "Outstanding"
-  }), /*#__PURE__*/React.createElement("section", {
+  }, totals.total ? (totals[b.key] / totals.total * 100).toFixed(1) + '% of AR' : '—')))), /*#__PURE__*/React.createElement("section", {
     className: "section"
   }, /*#__PURE__*/React.createElement("div", {
     className: "grid-half"
