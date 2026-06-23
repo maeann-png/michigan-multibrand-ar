@@ -1272,6 +1272,8 @@ const termDays = term => {
   const m = String(term || '').trim().toLowerCase().match(/net\s*(\d+)/);
   return m ? +m[1] : 0;
 };
+// Only consider invoices on/after this date (client-side floor, independent of the scraper window)
+const AR_FROM_FLOOR = '2025-01-01';
 function App() {
   const {
     data,
@@ -1328,6 +1330,7 @@ function ARDashboard({
     const m = {};
     normalized.forEach(r => {
       if (r._bucket === 'excluded' || r._excludedStatus || r.paid === true) return;
+      if (r._date && ymd(r._date) < AR_FROM_FLOOR) return;
       const id = r._id;
       if (!id) return;
       if (!m[id]) {
