@@ -1412,7 +1412,7 @@ function ARDashboard({
   }, [preScope]);
   const filtered = useMemo(() => preScope.filter(inScope), [preScope, scope]);
   const distinct = useMemo(() => ({
-    reps: [...new Set([...REP_ROSTER, ...allInvoices.map(o => o.rep).filter(Boolean)])].filter(r => !/unassigned/i.test(r)).sort(),
+    reps: [...new Set([...REP_ROSTER, ...allInvoices.map(o => o.rep).filter(Boolean)])].filter(r => !/unassigned|rami/i.test(r)).sort(),
     buyers: [...new Set(allInvoices.map(o => o.buyer).filter(Boolean))].sort(),
     brands: PRIMARY_BRANDS.filter(b => allInvoices.some(o => o.brands.includes(b)))
   }), [allInvoices]);
